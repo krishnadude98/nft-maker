@@ -1,109 +1,15 @@
-const Router= require('express').Router();
-const multer= require('multer');
-const path= require('path');
-const axios = require('axios');
-const FormData = require('form-data');
-var ipfsAPI = require('ipfs-api');
-var ipfs = ipfsAPI('localhost', '5001', {protocol: 'http'});
-const fs = require('fs');
-const cardano = require('./cardano');
+const nftController={};
+const cardano = require('../services/cardano');
 
-const storage= multer.diskStorage({
-    destination: function(req,file,cb){
-        cb(null,'./images');
-    },
-    filename: function(req,file,cb){
-        cb(null,Date.now()+path.extname(file.originalname));
-    }
-});
 
-function saveImage(filename, data){
-    var myBuffer = new Buffer(data.length);
-    for (var i = 0; i < data.length; i++) {
-        myBuffer[i] = data[i];
-    }
-    fs.writeFile(filename, myBuffer, function(err) {
-        if(err) {
-            console.log(err);
-        } else {
-            console.log("The file was saved!");
-        }
-    });
-  }
-  const createWallet = (account) => {
-    try{
-        paymentKeys = cardano.addressKeyGen(account);
-        stakeKeys   = cardano.stakeAddressKeyGen(account);
-        stakeAddr   = cardano.stakeAddressBuild(account);
-        paymentAddr = cardano.addressBuild(account,{
-            "paymentVkey": paymentKeys.vkey
-        });
-        
-        return cardano.wallet(account);
-    }
-    catch(err){
-        console.log(err)
-    }
-
-};
-
-const upload= multer({storage:storage});
-
-Router.post('/upload',upload.single('file'),async(req,res)=>{
-
-    
- 
-    const form = new FormData();
-    form.append('file',fs.createReadStream(`./${req.file.path}`));
-
-    
-    ipfs.util.addFromFs(`./${req.file.path}`, {recursive:true}, (err, data)=>{
-        if(err) throw err;
-        console.log(data);
-        res.send(data);
-    })
-}); 
-
-Router.get('/get',(req,res)=>{
-    ipfs.cat(req.body.hash, (err, stream)=>{
-        if(err) throw err;
-        res.json(stream);
-    })
-})
-
-Router.get('/stats',async(req,res)=>{
-    const stats = await ipfs.files.stat(`${req.body.filename}`)
-    res.json(stats)
-})
-
-Router.get('/download',(req,res)=>{
-    ipfs.cat(req.query.hash, (err, outStream)=>{
-        if(err) throw err;
-        
-
-        res.send(outStream);
-
-    })
-})
-
-Router.get('/createWallet',(req,res)=>{
-    
-    const sender=createWallet("ADA");
-    res.json({"message":"Wallet Created send Ada","Address":sender.paymentAddr});
-
-});
-
-Router.get('/balance',(req,res)=>{
-    const wallet= cardano.wallet("ADA");
-    res.json(wallet.balance());
-});
-
-Router.post('/mint',async(req,res)=>{
-    // 1. Get the wallet
-    console.log(req.query.address);
+nftController.post=async(req,res)=>{
     const wallet= cardano.wallet("ADA");
     let utxo= wallet.balance().utxo;
     let {hash,assetName,description,rType}=req.body;
+    if(hash==undefined||assetName==undefined||rType==undefined||description==undefined){
+        return(res.json({"message":"Please provide all the required fields"}));
+
+    }
     if(utxo.length==0){
         return res.json({"message":"Make sure to send Ada if already sended pls wait for a few minutes"});
     }
@@ -205,10 +111,10 @@ Router.post('/mint',async(req,res)=>{
      const txHash = cardano.transactionSubmit(signed)
 
      res.json({"message":"Transaction Submitted","txHash":txHash});
-});
 
+}
 
-Router.post('/send',async(req,res)=>{
+nftController.send=async(req,res)=>{
     const sender= cardano.wallet("ADA");
     let receiverAddress=req.body.receiverAddress;
     let asset= req.body.assetId;
@@ -260,10 +166,9 @@ Router.post('/send',async(req,res)=>{
     //submit transaction
     const txHash = cardano.transactionSubmit(txSigned);
     res.json({"message":"Transfer Transaction Submitted","txHash":txHash});
-      
-
-})
 
 
+}
 
-module.exports= Router;
+
+module.exports = nftController;

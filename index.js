@@ -1,16 +1,7 @@
-const config= require('./config');
-const express= require('express');
-const bodyParser= require('body-parser');
+const app = require('./app');
 
+const PORT = process.env.PORT || 3000;
 
-let app = express();
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-
-app.use(require('./controller/main'));
-
-app.listen(config.port,"0.0.0.0",(err)=>{
-    
-    console .log("Server Running on Port ",config.port)
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
