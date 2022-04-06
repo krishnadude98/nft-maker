@@ -118,8 +118,28 @@ nftController.send=async(req,res)=>{
     const sender= cardano.wallet("ADA");
     let receiverAddress=req.body.receiverAddress;
     let asset= req.body.assetId;
-    let obj={};
-   
+    let notContain=0;
+    let utxo= sender.balance();
+    
+
+    let obj={
+        lovelace: sender.balance().value.lovelace - cardano.toLovelace(1.6),
+    };
+    
+
+    const keys= Object.keys(utxo.value).forEach(key=>{
+        if(key!=asset && key!="lovelace"&& key!="undefined"){
+            obj[key]=utxo.value[key];
+        }
+        else if(key==asset){
+            notContain=1;
+        }
+    });
+
+    if(notContain==0){
+        return res.json({"message":"Asset not found try getting balance again"});
+    }
+    console.log("OBJ=>",obj);
     
     
     const txInfo = {
@@ -127,9 +147,7 @@ nftController.send=async(req,res)=>{
         txOut: [
           {
             address: sender.paymentAddr,
-            value: {
-              lovelace: sender.balance().value.lovelace - cardano.toLovelace(1.6),
-            },
+            value: obj,
           },
           {
             address: receiverAddress,
@@ -141,7 +159,10 @@ nftController.send=async(req,res)=>{
           },
         ],
       };
-    console.log(txInfo.txOut);
+
+
+    console.log("TXINFO=>",txInfo);
+    
 
     const raw = cardano.transactionBuildRaw(txInfo);
 
